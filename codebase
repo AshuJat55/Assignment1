@@ -1,0 +1,95 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+class Employee {
+    String name;
+    String position;
+    Date shiftDate;
+    double hoursWorked;
+
+    public Employee(String name, String position, Date shiftDate, double hoursWorked) {
+        this.name = name;
+        this.position = position;
+        this.shiftDate = shiftDate;
+        this.hoursWorked = hoursWorked;
+    }
+}
+
+public class Assignment1 {
+    public static void main(String[] args) {
+        // Define the criteria
+        int consecutiveDaysRequired = 7;
+        int minHoursBetweenShifts = 1;
+        int maxHoursInSingleShift = 14;
+
+        // Map to store employee data
+        Map<String, Employee> employeeMap = new HashMap<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader("employee_shifts.csv"))) {
+            String line;
+            String[] headers = null;
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy hh:mm a");
+
+            while ((line = reader.readLine()) != null) {
+                String[] data = line.split(",");
+                if (headers == null) {
+                    headers = data; // Assuming the first line contains headers
+                    continue;
+                }
+
+                // Extract data from CSV columns
+                String employeeName = data[7]; // Assuming the Employee Name column is in index 7
+                String position = data[0]; // Assuming the Position ID column is in index 0
+                String timeInStr = data[2]; // Assuming the Time column is in index 2
+                String timeOutStr = data[3]; // Assuming the Time Out column is in index 3
+
+                // Check if date and time strings are empty
+                if (timeInStr.isEmpty() || timeOutStr.isEmpty()) {
+                    continue; // Skip this line if data is missing
+                }
+
+                // Parse Time and Time Out as Date objects
+                Date timeIn = dateFormat.parse(timeInStr);
+                Date timeOut = dateFormat.parse(timeOutStr);
+
+                // Calculate hours worked (assuming it's the time difference)
+                long timeDifferenceMillis = timeOut.getTime() - timeIn.getTime();
+                double hoursWorked = (double) timeDifferenceMillis / (1000 * 60 * 60);
+
+                // Create or update employee data in the map
+                Employee employee = employeeMap.get(employeeName);
+                if (employee == null) {
+                    // Create a new employee entry if it doesn't exist
+                    employee = new Employee(employeeName, position, timeIn, hoursWorked);
+                    employeeMap.put(employeeName, employee);
+                } else {
+                    // Check for consecutive days worked
+                    long timeBetweenShifts = (timeIn.getTime() - employee.shiftDate.getTime()) / (1000 * 60 * 60);
+                    if (timeBetweenShifts < minHoursBetweenShifts) {
+                        consecutiveDaysRequired = 1;
+                    } else {
+                        consecutiveDaysRequired++;
+                    }
+                    // Update the shift date for the employee
+                    employee.shiftDate = timeIn;
+                }
+
+                // Check criteria (a), (b), and (c)
+                if (consecutiveDaysRequired == 7) {
+                    System.out.println(employeeName + " (" + position + ") has worked for 7 consecutive days.");
+                }
+                if (hoursWorked > maxHoursInSingleShift) {
+                    System.out.println(employeeName + " (" + position + ") has worked more than 14 hours in a single shift.");
+                }
+            }
+        } catch (IOException | ParseException e) {
+            e.printStackTrace(); // Handle exceptions
+        }
+    }
+}
